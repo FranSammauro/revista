@@ -1,0 +1,333 @@
+// Revista IVD — esquema de datos
+// PostgreSQL + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ALUMNO
+  PROFESOR
+  ADMIN
+}
+
+enum ArticleStatus {
+  BORRADOR
+  EN_REVISION
+  PUBLICADO
+  RECHAZADO
+  POSPUESTO
+}
+
+enum AuditAction {
+  REGISTRO_USUARIO
+  VERIFICACION_EMAIL
+  LOGIN
+  LOGIN_FALLIDO
+  CAMBIO_PASSWORD
+  ACCESO_TEMPORAL_PROFESOR
+  ARTICULO_ENVIADO_REVISION
+  ARTICULO_APROBADO
+  ARTICULO_RECHAZADO
+  ARTICULO_POSPUESTO
+  COMENTARIO_CREADO
+  COMENTARIO_MODERADO
+  COMENTARIO_BORRADO
+  USUARIO_SUSPENDIDO
+  USUARIO_REACTIVADO
+  WHITELIST_PROFESOR_AGREGADO
+  WHITELIST_PROFESOR_QUITADO
+}
+
+// ---------------------------------------------------------------------------
+// Materias (secciones de la revista)
+// ---------------------------------------------------------------------------
+
+model Subject {
+  id        String   @id @default(cuid())
+  slug      String   @unique // 'matematica' | 'quimica' | 'fisica' | 'ciencias-de-la-tierra' | 'biologia'
+  label     String   // 'Matemática', 'Química', ...
+  color     String   // color de tapa/categoría
+  createdAt DateTime @default(now())
+
+  // Cuenta compartida de la materia (login tipo "fisica", "quimica", etc.)
+  subjectAccount SubjectAccount?
+
+  teacherWhitelist TeacherWhitelistEntry[]
+  articles         Article[]
+
+  @@map("subjects")
+}
+
+// ---------------------------------------------------------------------------
+// Cuenta compartida de materia ("Física", "Química", etc.)
+// Es la cuenta que los profesores de esa materia usan para revisar/publicar.
+// No tiene dueño personal: varios profesores comparten el acceso.
+// ---------------------------------------------------------------------------
+
+model SubjectAccount {
+  id        String   @id @default(cuid())
+  subjectId String   @unique
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+
+  username     String   @unique // ej: "fisica", "quimica"
+  // null hasta que un profesor entra por primera vez (vía acceso temporal)
+  // y define la contraseña de la cuenta. A partir de ahí también se puede
+  // usar login directo usuario + contraseña como atajo.
+  passwordHash String?
+
+  // true hasta que alguien define una contraseña por primera vez
+  mustChangePassword Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacherAccesses TeacherAccess[]
+
+  @@map("subject_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Lista blanca dinámica de profesores habilitados
+// Administrable desde el panel admin (vos). Un mail institucional docente
+// (nombre.apellido@institutoverbodivino.edu.ar) habilitado acá puede
+// pedir acceso temporal a la cuenta de su(s) materia(s).
+// ---------------------------------------------------------------------------
+
+model TeacherWhitelistEntry {
+  id        String  @id @default(cuid())
+  email     String  // nombre.apellido@institutoverbodivino.edu.ar
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  // nombre de referencia, solo para que vos identifiques a quién corresponde
+  displayName String?
+
+  addedBy   String   // userId del admin que lo agregó
+  createdAt DateTime @default(now())
+
+  teacherAccesses TeacherAccess[]
+
+  // Un mismo mail puede estar habilitado para varias materias (ej. un
+  // profesor que da Física Y Matemática), pero no duplicado en la misma.
+  @@unique([email, subjectId])
+  @@map("teacher_whitelist_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Identidad personal de un profesor (login con su mail institucional docente)
+// Separado de SubjectAccount: esto es la "puerta de entrada" personal,
+// antes de poder pedir acceso a la cuenta compartida de la materia.
+// ---------------------------------------------------------------------------
+
+model TeacherIdentity {
+  id            String   @id @default(cuid())
+  email         String   @unique // nombre.apellido@institutoverbodivino.edu.ar
+  displayName   String
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  accesses        TeacherAccess[]
+  emailTokens     EmailToken[]
+  auditLogsActor  AuditLog[] @relation("AuditActorTeacher")
+
+  @@map("teacher_identities")
+}
+
+// Token de acceso temporal de un solo uso para entrar a una SubjectAccount
+model TeacherAccess {
+  id               String   @id @default(cuid())
+  teacherIdentityId String
+  teacherIdentity  TeacherIdentity @relation(fields: [teacherIdentityId], references: [id])
+
+  subjectAccountId String
+  subjectAccount   SubjectAccount @relation(fields: [subjectAccountId], references: [id])
+
+  whitelistEntryId String
+  whitelistEntry   TeacherWhitelistEntry @relation(fields: [whitelistEntryId], references: [id])
+
+  token     String   @unique // token random, va en el link del mail
+  expiresAt DateTime // ej: now() + 1 hora
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("teacher_accesses")
+}
+
+// ---------------------------------------------------------------------------
+// Usuarios (alumnos y personas que comentan). Los profesores NO tienen User;
+// manejan su materia a través de SubjectAccount + TeacherIdentity.
+// El ADMIN (vos) sí es un User con role ADMIN.
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         Role     @default(ALUMNO)
+
+  // true si el mail matchea apellido.nombre@institutoverbodivino.edu.ar
+  // habilita publicar artículos. Si es false (mail personal), solo puede comentar.
+  isInstitutional Boolean @default(false)
+
+  emailVerified Boolean @default(false)
+
+  // Moderación
+  suspendedUntil DateTime? // null = no suspendido
+  suspendReason  String?
+
+  registrationIp String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles       Article[]
+  comments       Comment[]
+  emailTokens    EmailToken[]
+  auditLogsActor AuditLog[] @relation("AuditActorUser")
+  auditLogsTarget AuditLog[] @relation("AuditTargetUser")
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Tokens de verificación de mail (códigos para alumnos, también reutilizable
+// genéricamente). Para profesores se usa TeacherAccess (link, no código).
+// ---------------------------------------------------------------------------
+
+enum EmailTokenPurpose {
+  VERIFICACION_REGISTRO
+  RECUPERACION_PASSWORD
+}
+
+model EmailToken {
+  id      String            @id @default(cuid())
+  purpose EmailTokenPurpose
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  teacherIdentityId String?
+  teacherIdentity   TeacherIdentity? @relation(fields: [teacherIdentityId], references: [id])
+
+  code      String   // código de 6 dígitos que se manda por mail
+  attempts  Int      @default(0) // intentos fallidos — se invalida tras MAX_ATTEMPTS
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("email_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Artículos
+// ---------------------------------------------------------------------------
+
+model Article {
+  id      String @id @default(cuid())
+  slug    String @unique
+  title   String
+  excerpt String
+  content String // markdown / mdx body
+
+  coverColor String
+  readTime   Int    @default(5)
+  featured   Boolean @default(false)
+
+  status ArticleStatus @default(BORRADOR)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  // Revisión editorial
+  reviewComment String?   // motivo si fue rechazado/pospuesto
+  reviewedBy    String?   // username de la SubjectAccount que revisó (ej. "fisica")
+  reviewedAt    DateTime?
+
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments Comment[]
+
+  @@map("articles")
+}
+
+// ---------------------------------------------------------------------------
+// Comentarios (foro tipo hilo, fase 2)
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id])
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  parentCommentId String?
+  parentComment   Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id])
+  replies         Comment[] @relation("CommentReplies")
+
+  body String
+
+  isCensored Boolean   @default(false)
+  censoredBy String?   // username de quien lo censuró/borró (profesor o admin)
+  censoredAt DateTime?
+
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("comments")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoría — visible solo en el panel admin
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id     String      @id @default(cuid())
+  action AuditAction
+
+  // Quién ejecutó la acción. Puede ser un User (alumno/admin) o un profesor
+  // actuando a través de su TeacherIdentity + la cuenta de materia (subjectUsername).
+  actorUserId String?
+  actorUser   User?   @relation("AuditActorUser", fields: [actorUserId], references: [id])
+
+  actorTeacherIdentityId String?
+  actorTeacherIdentity   TeacherIdentity? @relation("AuditActorTeacher", fields: [actorTeacherIdentityId], references: [id])
+
+  // Si actuó "como" una cuenta de materia (ej. profesor de física actuando como "fisica")
+  actingAsSubjectUsername String?
+
+  targetUserId String?
+  targetUser   User?   @relation("AuditTargetUser", fields: [targetUserId], references: [id])
+
+  targetArticleId String?
+  targetCommentId String?
+
+  ip       String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+  @@index([createdAt])
+  @@index([action])
+}

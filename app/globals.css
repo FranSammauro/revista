@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+:root {
+  --ivd-red: #C8102E;
+  --ivd-red-dark: #9B0B22;
+  --ivd-red-light: #E8314E;
+  --ivd-black: #0D0D0D;
+  --ivd-white: #FAFAFA;
+  --ivd-gray: #F2F2F0;
+  --ivd-gray-mid: #9A9A9A;
+  --ivd-gray-dark: #3A3A3A;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ivd-white);
+  color: var(--ivd-black);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--ivd-red);
+  color: white;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--ivd-gray); }
+::-webkit-scrollbar-thumb { background: var(--ivd-red); border-radius: 2px; }
+
+/* Typography */
+.font-display { font-family: var(--font-display); }
+.font-body { font-family: var(--font-body); }
+.font-mono { font-family: var(--font-mono); }
+
+/* Noise texture overlay */
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Article prose styles */
+.prose-ivd h2 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ivd-black);
+  margin: 2.5rem 0 1rem;
+  line-height: 1.2;
+}
+.prose-ivd h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+}
+.prose-ivd p {
+  font-size: 1.0625rem;
+  line-height: 1.8;
+  color: var(--ivd-gray-dark);
+  margin-bottom: 1.25rem;
+}
+.prose-ivd strong { color: var(--ivd-black); font-weight: 600; }
+.prose-ivd em { font-style: italic; color: var(--ivd-red-dark); }
+.prose-ivd blockquote {
+  border-left: 3px solid var(--ivd-red);
+  padding-left: 1.5rem;
+  margin: 2rem 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--ivd-gray-dark);
+}
+.prose-ivd ul, .prose-ivd ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.prose-ivd li {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+  color: var(--ivd-gray-dark);
+}
+.prose-ivd a {
+  color: var(--ivd-red);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-ivd code {
+  font-family: var(--font-mono);
+  background: var(--ivd-gray);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideRight {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-fade-up { animation: fadeUp 0.7s ease forwards; }
+.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
+.animate-marquee { animation: marquee 28s linear infinite; }
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Red line decoration */
+.red-line {
+  display: inline-block;
+  width: 48px;
+  height: 3px;
+  background: var(--ivd-red);
+  border-radius: 2px;
+}
+
+/* Ensure transparent PNG logos render without background */
+img[alt="Escudo IVD"],
+img[alt="IVD"] {
+  background: transparent !important;
+  mix-blend-mode: normal;
+}
