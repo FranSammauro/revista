@@ -69,6 +69,7 @@ export interface SubjectSessionPayload {
   kind: 'subject'
   subjectAccountId: string
   subjectSlug: string
+  subjectLabel: string // ej. "Física" — para mostrar en la UI sin otra consulta
   username: string
   // quién activó esta sesión, para el log de auditoría de cada acción
   actingTeacherIdentityId: string

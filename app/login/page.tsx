@@ -46,7 +46,20 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error); return }
+      if (!res.ok) {
+        if (data.isTeacherEmail) {
+          // Se equivocó de pestaña: es un mail de la whitelist docente.
+          // Lo mandamos directo al flujo correcto, con el mail ya cargado
+          // y el código pedido, para que no tenga que volver a escribir nada.
+          setTab('docente')
+          setTeacherEmail(email)
+          setError('')
+          await requestTeacherCode(email)
+          return
+        }
+        setError(data.error)
+        return
+      }
       router.push(data.user?.role === 'ADMIN' ? '/admin' : '/')
       router.refresh()
     } catch {
@@ -56,14 +69,13 @@ export default function LoginPage() {
     }
   }
 
-  async function handleRequestCode(e: React.FormEvent) {
-    e.preventDefault()
-    setError(''); setMessage(''); setLoading(true)
+  async function requestTeacherCode(targetEmail: string) {
+    setMessage(''); setLoading(true)
     try {
       const res = await fetch('/api/teacher/request-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: teacherEmail }),
+        body: JSON.stringify({ email: targetEmail }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -74,6 +86,12 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleRequestCode(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    await requestTeacherCode(teacherEmail)
   }
 
   async function handleVerifyCode(e: React.FormEvent) {

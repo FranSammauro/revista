@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/require-admin'
 
-// Panel de logs — solo un ADMIN poduede verlo.
+// Panel de logs — solo vos (ADMIN) podés verlo.
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })

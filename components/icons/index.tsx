@@ -49,8 +49,22 @@ export function IconBiologia({ size = 24, color = 'currentColor' }: { size?: num
   )
 }
 
+export function IconMatematica({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Compass (geometry) */}
+      <circle cx="12" cy="6.5" r="1.4" stroke={color} strokeWidth="1.5"/>
+      <path d="M12 7.9 6 19M12 7.9l6 11.1" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 19.5h2.2M16.8 19.5H19" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      {/* small sigma-like accent */}
+      <path d="M17.5 3.5h-3.2l1.8 2.2-1.8 2.3h3.2" stroke={color} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export function getCategoryIcon(category: string, size = 20, color = 'currentColor') {
   switch (category) {
+    case 'matematica': return <IconMatematica size={size} color={color} />
     case 'quimica': return <IconQuimica size={size} color={color} />
     case 'fisica': return <IconFisica size={size} color={color} />
     case 'ciencias-de-la-tierra': return <IconTierra size={size} color={color} />

@@ -9,9 +9,9 @@ const schema = z.object({
   reason: z.string().min(3).max(300).optional(),
 })
 
-// Autorizado para ADMINISTRADOR/ES o cualquier profesor con una sesión de materia
+// Autorizado para ADMIN (vos) o cualquier profesor con una sesión de materia
 // activa (un profe de Física puede suspender a alguien por un comentario en
-// un artículo de Biología — queda en logs con qué cuenta actuó).
+// un artículo de Biología — queda registrado en el log con qué cuenta actuó).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const primary = await getPrimarySession()
   const subject = await getSubjectSession()

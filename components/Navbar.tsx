@@ -104,9 +104,11 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Right side */}
+        {/* Right side — el botón de Ingresar/Publicar siempre visible,
+            tanto en desktop como en mobile (antes solo se mostraba si
+            !isMobile y quedaba escondido adentro del menú hamburguesa) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {!isMobile && <AuthButton lightMode={lightMode} />}
+          <AuthButton lightMode={lightMode} />
 
           {/* Mobile hamburger — only rendered on mobile */}
           {isMobile && (
@@ -152,9 +154,6 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          <div style={{ paddingTop: '1rem' }}>
-            <AuthButton lightMode={true} />
-          </div>
         </div>
       )}
     </header>

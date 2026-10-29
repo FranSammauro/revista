@@ -1,13 +1,14 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { MessageCircle, CornerDownRight, ShieldAlert, ShieldOff, Trash2, Send } from 'lucide-react'
+import { MessageCircle, CornerDownRight, ShieldAlert, ShieldOff, Trash2, Send, User as UserIcon } from 'lucide-react'
+import ProfilePreviewCard from './ProfilePreviewCard'
 
 interface RawComment {
   id: string
   parentCommentId: string | null
   createdAt: string
-  author: { id: string; displayName: string } | null
+  author: { id: string; displayName: string; avatarUrl: string | null } | null
   body: string
   isCensored: boolean
   isDeleted: boolean
@@ -40,6 +41,7 @@ export default function CommentsSection({ slug }: { slug: string }) {
   const [newBody, setNewBody] = useState('')
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
+  const [previewUserId, setPreviewUserId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/articles/${slug}/comments`)
@@ -124,15 +126,17 @@ export default function CommentsSection({ slug }: { slug: string }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {tree.map(c => (
           <CommentNode key={c.id} comment={c} depth={0} loggedIn={!!loggedIn} isModerator={isModerator}
-            onReply={postComment} onModerate={moderate} />
+            onReply={postComment} onModerate={moderate} onOpenProfile={setPreviewUserId} />
         ))}
       </div>
+
+      <ProfilePreviewCard userId={previewUserId} onClose={() => setPreviewUserId(null)} />
     </div>
   )
 }
 
 function CommentNode({
-  comment, depth, loggedIn, isModerator, onReply, onModerate,
+  comment, depth, loggedIn, isModerator, onReply, onModerate, onOpenProfile,
 }: {
   comment: TreeComment
   depth: number
@@ -140,6 +144,7 @@ function CommentNode({
   isModerator: boolean
   onReply: (body: string, parentCommentId?: string) => Promise<boolean>
   onModerate: (id: string, action: 'CENSURAR' | 'DESCENSURAR' | 'BORRAR') => void
+  onOpenProfile: (userId: string) => void
 }) {
   const [replying, setReplying] = useState(false)
   const [replyBody, setReplyBody] = useState('')
@@ -162,9 +167,31 @@ function CommentNode({
         borderRadius: 10, padding: comment.isDeleted ? '0.4rem 0' : '0.9rem 1.1rem',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: comment.isDeleted ? 'var(--ivd-gray-mid)' : 'var(--ivd-black)' }}>
-            {comment.isDeleted ? '—' : comment.author?.displayName}
-          </span>
+          {comment.isDeleted || !comment.author ? (
+            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--ivd-gray-mid)' }}>—</span>
+          ) : (
+            <button
+              onClick={() => onOpenProfile(comment.author!.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none',
+                padding: 0, cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                background: 'var(--ivd-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {comment.author.avatarUrl ? (
+                  <img src={comment.author.avatarUrl} alt="" width={24} height={24} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <UserIcon size={12} color="var(--ivd-gray-mid)" />
+                )}
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--ivd-black)' }}>
+                {comment.author.displayName}
+              </span>
+            </button>
+          )}
           <span style={{ fontSize: '0.72rem', color: 'var(--ivd-gray-mid)' }}>
             {new Date(comment.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -235,7 +262,7 @@ function CommentNode({
         <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {comment.children.map(child => (
             <CommentNode key={child.id} comment={child} depth={depth + 1} loggedIn={loggedIn} isModerator={isModerator}
-              onReply={onReply} onModerate={onModerate} />
+              onReply={onReply} onModerate={onModerate} onOpenProfile={onOpenProfile} />
           ))}
         </div>
       )}

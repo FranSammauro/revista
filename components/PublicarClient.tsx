@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCategoryIcon } from '@/components/icons'
 import { SUBJECTS } from '@/lib/subjects'
-import { LogOut, Send, FileText, Clock, CheckCircle2 } from 'lucide-react'
+import { LogOut, Send, FileText, Clock, CheckCircle2, UploadCloud, AlertTriangle } from 'lucide-react'
 
 interface User { displayName: string; role: string }
 
@@ -17,6 +17,40 @@ export default function PublicarClient({ user }: { user: User }) {
   const [publishing, setPublishing] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+
+  // --- Importar desde .docx/.pdf ---
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [parseWarnings, setParseWarnings] = useState<string[]>([])
+  const [parsedFileName, setParsedFileName] = useState('')
+
+  async function handleFile(file: File) {
+    setError(''); setParseWarnings([]); setParsing(true)
+    try {
+      const formData = new FormData()
+      formData.append('document', file)
+      const res = await fetch('/api/articles/parse-document', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error); return }
+      setTitle(data.title || '')
+      setExcerpt(data.excerpt || '')
+      setContent(data.content || '')
+      setParseWarnings(data.warnings || [])
+      setParsedFileName(file.name)
+    } catch {
+      setError('No se pudo procesar el archivo. Intentá de nuevo.')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFile(file)
+  }
 
   const cat = SUBJECTS.find(s => s.slug === subjectSlug)
 
@@ -111,6 +145,48 @@ export default function PublicarClient({ user }: { user: User }) {
             El/la docente de la materia que elijas va a revisarlo antes de que se publique.
           </p>
         </div>
+
+        {/* Importar desde .docx / .pdf */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            marginBottom: '1.25rem', padding: '1.5rem', borderRadius: 12, cursor: 'pointer',
+            border: `2px dashed ${dragOver ? 'var(--ivd-red)' : 'var(--ivd-gray-mid)'}`,
+            background: dragOver ? 'rgba(200,16,46,0.04)' : 'white',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center',
+            transition: 'all 0.15s',
+          }}
+        >
+          <UploadCloud size={26} color={dragOver ? 'var(--ivd-red)' : 'var(--ivd-gray-mid)'} />
+          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--ivd-black)' }}>
+            {parsing ? 'Procesando documento...' : 'Arrastrá acá tu .docx o .pdf, o hacé click para elegirlo'}
+          </p>
+          <p style={{ fontSize: '0.76rem', color: 'var(--ivd-gray-mid)' }}>
+            Se completan el título, la descripción y el contenido automáticamente — revisalos antes de enviar.{' '}
+            <a href="/guia-formato-articulos" onClick={e => e.stopPropagation()} style={{ color: 'var(--ivd-red)', fontWeight: 600 }}>
+              Ver formato esperado
+            </a>
+          </p>
+          {parsedFileName && !parsing && (
+            <p style={{ fontSize: '0.76rem', color: '#1a7a3a', fontWeight: 600 }}>✓ {parsedFileName} procesado</p>
+          )}
+          <input ref={fileInputRef} type="file" accept=".docx,.pdf" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+        </div>
+
+        {parseWarnings.length > 0 && (
+          <div style={{ marginBottom: '1.25rem', padding: '12px 16px', background: '#fff8e6', border: '1px solid #ffdd88', borderRadius: 10 }}>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem', fontWeight: 700, color: '#8a6500', marginBottom: 6 }}>
+              <AlertTriangle size={15} /> Revisá esto antes de enviar:
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.82rem', color: '#8a6500' }}>
+              {parseWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </div>
+        )}
 
         <form onSubmit={handlePublish}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

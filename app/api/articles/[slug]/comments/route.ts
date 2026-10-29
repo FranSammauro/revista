@@ -5,7 +5,7 @@ import { getPrimarySession, getSubjectSession } from '@/lib/session'
 
 // GET: hilo completo de comentarios de un artículo. Los moderadores
 // (admin o cualquier materia con sesión activa) ven el texto de los
-// comentarios censurados; los demas solo ven el placeholder.
+// comentarios censurados; el resto de la gente solo ve el placeholder.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const article = await prisma.article.findUnique({
@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
 
   const comments = await prisma.comment.findMany({
     where: { articleId: article.id },
-    include: { author: { select: { id: true, displayName: true } } },
+    include: { author: { select: { id: true, displayName: true, avatarUrl: true } } },
     orderBy: { createdAt: 'asc' },
   })
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       body: parsed.data.body,
       parentCommentId: parsed.data.parentCommentId,
     },
-    include: { author: { select: { id: true, displayName: true } } },
+    include: { author: { select: { id: true, displayName: true, avatarUrl: true } } },
   })
 
   return NextResponse.json({ ok: true, comment })

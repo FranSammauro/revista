@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, email: true, displayName: true, role: true, isInstitutional: true,
       emailVerified: true, suspendedUntil: true, suspendReason: true, createdAt: true,
+      avatarUrl: true,
     },
     orderBy: { createdAt: 'desc' },
     take: 50,

@@ -23,6 +23,19 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email } })
 
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    // Si el mail está en la whitelist docente, lo más probable es que un
+    // profesor se haya equivocado de pestaña (Alumno en vez de Docente) —
+    // se lo señalamos al frontend para que lo mande al flujo correcto en
+    // vez de solo decirle "contraseña incorrecta" (los profesores no tienen
+    // contraseña propia en este flujo, así que ese mensaje confundiría más).
+    const isTeacherEmail = await prisma.teacherWhitelistEntry.findFirst({ where: { email } })
+    if (isTeacherEmail) {
+      return NextResponse.json({
+        error: 'Ese mail está registrado como docente. Te llevamos a la pestaña correcta.',
+        isTeacherEmail: true,
+      }, { status: 409 })
+    }
+
     await logAudit({ action: 'LOGIN_FALLIDO', ip, metadata: { email } })
     return NextResponse.json({ error: 'Mail o contraseña incorrectos' }, { status: 401 })
   }

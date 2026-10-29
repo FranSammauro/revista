@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Search, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { Search, ShieldAlert, ShieldCheck, User as UserIcon, ImageOff } from 'lucide-react'
 
 interface UserRow {
   id: string
@@ -11,6 +11,7 @@ interface UserRow {
   emailVerified: boolean
   suspendedUntil: string | null
   suspendReason: string | null
+  avatarUrl: string | null
 }
 
 export default function UsuariosClient() {
@@ -45,6 +46,14 @@ export default function UsuariosClient() {
     load(q)
   }
 
+  async function removeAvatar(id: string) {
+    if (!confirm('¿Quitar la foto de perfil de este usuario?')) return
+    setActing(id)
+    await fetch(`/api/admin/users/${id}/remove-avatar`, { method: 'POST' })
+    setActing(null)
+    load(q)
+  }
+
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.6rem', color: 'var(--ivd-black)', marginBottom: '1.5rem' }}>
@@ -69,7 +78,18 @@ export default function UsuariosClient() {
           const isSuspended = u.suspendedUntil && new Date(u.suspendedUntil) > new Date()
           return (
             <div key={u.id} style={{ background: 'white', borderRadius: 10, padding: '0.9rem 1.1rem', border: '1px solid var(--ivd-gray)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                  background: 'var(--ivd-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {u.avatarUrl ? (
+                    <img src={u.avatarUrl} alt="" width={36} height={36} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <UserIcon size={16} color="var(--ivd-gray-mid)" />
+                  )}
+                </div>
+                <div>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                   {u.displayName} <span style={{ fontWeight: 400, color: 'var(--ivd-gray-mid)' }}>· {u.email}</span>
                 </div>
@@ -82,27 +102,36 @@ export default function UsuariosClient() {
                 {isSuspended && u.suspendReason && (
                   <div style={{ fontSize: '0.78rem', color: 'var(--ivd-gray-mid)', marginTop: 2 }}>Motivo: {u.suspendReason}</div>
                 )}
+                </div>
               </div>
               {u.role !== 'ADMIN' && (
-                isSuspended ? (
-                  <button onClick={() => suspend(u.id, 0)} disabled={acting === u.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: '#1a7a3a',
-                    color: 'white', border: 'none', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-                  }}>
-                    <ShieldCheck size={14} /> Reactivar
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {[3, 7, 30].map(d => (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {u.avatarUrl && (
+                    <button onClick={() => removeAvatar(u.id)} disabled={acting === u.id} title="Quitar foto de perfil" style={{
+                      display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px', background: 'none',
+                      border: '1px solid var(--ivd-gray-mid)', color: 'var(--ivd-gray-dark)', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    }}>
+                      <ImageOff size={13} /> Quitar foto
+                    </button>
+                  )}
+                  {isSuspended ? (
+                    <button onClick={() => suspend(u.id, 0)} disabled={acting === u.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: '#1a7a3a',
+                      color: 'white', border: 'none', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                    }}>
+                      <ShieldCheck size={14} /> Reactivar
+                    </button>
+                  ) : (
+                    [3, 7, 30].map(d => (
                       <button key={d} onClick={() => suspend(u.id, d)} disabled={acting === u.id} style={{
                         display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px', background: 'none',
                         border: '1px solid #C8102E', color: '#C8102E', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
                       }}>
                         <ShieldAlert size={13} /> {d}d
                       </button>
-                    ))}
-                  </div>
-                )
+                    ))
+                  )}
+                </div>
               )}
             </div>
           )

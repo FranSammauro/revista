@@ -44,6 +44,7 @@ enum AuditAction {
   COMENTARIO_BORRADO
   USUARIO_SUSPENDIDO
   USUARIO_REACTIVADO
+  FOTO_PERFIL_ELIMINADA
   WHITELIST_PROFESOR_AGREGADO
   WHITELIST_PROFESOR_QUITADO
 }
@@ -136,6 +137,16 @@ model TeacherIdentity {
   emailVerified Boolean  @default(false)
   createdAt     DateTime @default(now())
 
+  // Perfil — mismos campos que User, para que el profesor tenga su propia
+  // identidad persistente (foto, bio, redes) independiente de las cuentas
+  // de materia que comparte con otros docentes.
+  avatarUrl       String?
+  bio             String?
+  instagramHandle String?
+  avatarRemovedBy String?   // userId del admin que la sacó, si corresponde
+  avatarRemovedAt DateTime?
+  lastSeenAt      DateTime?
+
   accesses        TeacherAccess[]
   emailTokens     EmailToken[]
   auditLogsActor  AuditLog[] @relation("AuditActorTeacher")
@@ -182,9 +193,17 @@ model User {
 
   emailVerified Boolean @default(false)
 
+  // Perfil
+  avatarUrl       String?   // ruta pública, ej. /uploads/avatars/<archivo>
+  bio             String?   // breve descripción/gustos, texto libre
+  instagramHandle String?   // sin @, ej. "ivd.revista"
+  lastSeenAt      DateTime? // se actualiza en cada /api/auth/me — proxy simple de "en línea"
+
   // Moderación
-  suspendedUntil DateTime? // null = no suspendido
-  suspendReason  String?
+  suspendedUntil  DateTime? // null = no suspendido
+  suspendReason   String?
+  avatarRemovedBy String?   // userId del admin que la sacó, si corresponde
+  avatarRemovedAt DateTime?
 
   registrationIp String?
 

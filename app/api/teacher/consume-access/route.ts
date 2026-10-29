@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     kind: 'subject',
     subjectAccountId: access.subjectAccount.id,
     subjectSlug: access.subjectAccount.subject.slug,
+    subjectLabel: access.subjectAccount.subject.label,
     username: access.subjectAccount.username,
     actingTeacherIdentityId: access.teacherIdentity.id,
     actingTeacherEmail: access.teacherIdentity.email,
