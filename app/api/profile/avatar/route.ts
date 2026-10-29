@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { put, del } from '@vercel/blob'
 import { prisma } from '@/lib/prisma'
 import { getPrimarySession } from '@/lib/session'
-import { writeFile, unlink, mkdir } from 'node:fs/promises'
-import path from 'node:path'
+
+// Nota: los avatares se guardan en Vercel Blob, NO en disco. El filesystem
+// de una función serverless de Vercel es de solo lectura (salvo /tmp, que
+// ni siquiera persiste entre invocaciones), así que escribir a
+// public/uploads/ funciona en local pero rompe en producción. Vercel Blob
+// resuelve esto con una URL pública estable por archivo.
+export const maxDuration = 30
 
 const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
 const ALLOWED_TYPES: Record<string, string> = {
@@ -10,8 +16,6 @@ const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
 }
-
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars')
 
 // Devuelve { currentAvatarUrl, save } donde save(url) actualiza el registro
 // correcto (User o TeacherIdentity) según el tipo de sesión.
@@ -62,20 +66,17 @@ export async function POST(req: NextRequest) {
   if (!ext) return NextResponse.json({ error: 'Formato no permitido. Usá PNG, JPG o WEBP.' }, { status: 400 })
   if (file.size > MAX_BYTES) return NextResponse.json({ error: 'La imagen no puede pesar más de 2 MB.' }, { status: 400 })
 
-  await mkdir(UPLOAD_DIR, { recursive: true })
+  const filename = `avatars/${account.id}-${Date.now()}.${ext}`
+  const blob = await put(filename, file, { access: 'public', contentType: file.type })
 
-  const filename = `${account.id}-${Date.now()}.${ext}`
-  const bytes = Buffer.from(await file.arrayBuffer())
-  await writeFile(path.join(UPLOAD_DIR, filename), bytes)
-
-  if (account.currentAvatarUrl?.startsWith('/uploads/avatars/')) {
-    await unlink(path.join(process.cwd(), 'public', account.currentAvatarUrl)).catch(() => {})
+  // Borramos el blob anterior (si lo había y era nuestro, no una URL externa)
+  if (account.currentAvatarUrl?.includes('.public.blob.vercel-storage.com/')) {
+    await del(account.currentAvatarUrl).catch(() => {})
   }
 
-  const avatarUrl = `/uploads/avatars/${filename}`
-  await account.save(avatarUrl)
+  await account.save(blob.url)
 
-  return NextResponse.json({ ok: true, avatarUrl })
+  return NextResponse.json({ ok: true, avatarUrl: blob.url })
 }
 
 export async function DELETE() {
@@ -86,8 +87,8 @@ export async function DELETE() {
   if (!account) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   if ('blocked' in account) return NextResponse.json({ error: account.blocked }, { status: 403 })
 
-  if (account.currentAvatarUrl?.startsWith('/uploads/avatars/')) {
-    await unlink(path.join(process.cwd(), 'public', account.currentAvatarUrl)).catch(() => {})
+  if (account.currentAvatarUrl?.includes('.public.blob.vercel-storage.com/')) {
+    await del(account.currentAvatarUrl).catch(() => {})
   }
   await account.save(null)
 

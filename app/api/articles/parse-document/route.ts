@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrimarySession } from '@/lib/session'
 import { parseArticleText, extractTextFromDocx, extractTextFromPdf } from '@/lib/document-parser'
 
+export const maxDuration = 30
+
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

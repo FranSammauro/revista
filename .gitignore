@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# fotos de perfil que se hayan guardado en disco en desarrollo local
+# (en producción esto vive en Vercel Blob, no en el repo)
+/public/uploads
 
 # vercel
 .vercel
